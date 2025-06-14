@@ -3,6 +3,8 @@ import sys
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+from prompts import system_prompt
+from call_function import available_functions
 
 def main():
     load_dotenv()
@@ -35,16 +37,29 @@ def main():
     generate_content(client, messages, verbose)
 
 
+
 def generate_content(client, messages, verbose):
     response = client.models.generate_content(
         model="gemini-2.0-flash-001",
         contents=messages,
+        config=types.GenerateContentConfig(
+            tools=[available_functions], 
+            system_instruction=system_prompt #gives the chat a role eg. You are a math professor
+        ), 
     )
     if verbose:
         print("Prompt tokens:", response.usage_metadata.prompt_token_count)
         print("Response tokens:", response.usage_metadata.candidates_token_count)
     print("Response:")
-    print(response.text)
+    # print(response.text)
+    #response.function_calls returns list of function call objects, 
+    #function_calls[0] is the first function call object. it has property id, args and name
+    if not response.function_calls:
+        return response.text
+
+    for function_call_part in response.function_calls:
+        print(f"Calling function: {function_call_part.name}({function_call_part.args})")
+
 
 
 if __name__ == "__main__":
